@@ -1,0 +1,55 @@
+#! /bin/sh
+echo -e '
+*********************************************************************************************
+* Script Is for downloading logs from App Server.                                           *
+* Press Ctrl + C for come out of the script                                                 * 
+* Zip file will copy to /tmp dir of bastion.                                                *
+* Remove the previous log file from /tmp Dir of same server if available.                   *
+*********************************************************************************************\n'
+
+mkdir -p bastionlogs
+
+echo -e 'Enter User Name In Lower Case\n'
+read user
+
+echo -e '\nPress \n1---> All State
+2---> USB
+3---> Hiscox\n'
+
+read customer
+
+case $customer in
+
+1) cust=allstate
+;;
+2) cust=usbank
+;;
+3) cust=hiscox
+;;
+
+esac
+
+echo -e '\nPress y to continue\n'
+dm-admin report servers --customer $cust --src-env prod | cat > serv1
+awk '{print $1}' serv1 | grep -e [0-9] > serv2
+
+for i in $(cat serv2)
+do
+
+echo -e '\nDownload started from server--> '$i
+echo -e '\n'
+
+scp $user@dmident.local@$i:/decision/appl/dm/log/* /home/$user@dmident.local/bastionlogs
+echo -e '\n'
+scp $user@dmident.local@$i:/decision/appl/dm/tomcat/logs/* /home/$user@dmident.local/bastionlogs
+
+tar -cvf - bastionlogs | gzip -c > /tmp/log_$user@_$i.tar.gz
+rm -rf /home/$user@dmident.local/bastionlogs/*
+
+echo -e '\nDownload  Successfull for the server--> '$i
+
+done
+
+echo -e '\n Tar File Copied to /tmp DIR'
+
+rm -rf serv1 serv2 bastionlogs
